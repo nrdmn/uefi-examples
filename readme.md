@@ -6,7 +6,7 @@ Recommended reading order:
 1. protocols
 1. events
 1. memory (TODO)
-1. efivars (TODO)
+1. efivars
 1. hii (TODO)
 
 ## How to build and run.
