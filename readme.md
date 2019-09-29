@@ -4,7 +4,7 @@ This repo contains examples about how to use Zig to build UEFI apps.
 Recommended reading order:
 1. hello
 1. protocols
-1. events (TODO)
+1. events
 1. memory (TODO)
 1. efivars (TODO)
 1. hii (TODO)
