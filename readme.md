@@ -30,3 +30,4 @@ It's really well written.
 ## Further reading
 - https://uefi.org/sites/default/files/resources/UEFI_Spec_2_8_final.pdf
 - https://www.intel.com/content/dam/doc/guide/efi-driver-writers-v1-10-guide.pdf
+- Beyond BIOS: Developing with the Unified Extensible Firmware Interface
