@@ -5,7 +5,7 @@ Recommended reading order:
 1. hello
 1. protocols
 1. events
-1. memory (TODO)
+1. memory
 1. efivars
 1. hii (TODO)
 
