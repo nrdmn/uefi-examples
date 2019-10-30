@@ -21,7 +21,18 @@ pub const SimpleNetworkProtocol = extern struct {
     _start: extern fn (*const SimpleNetworkProtocol) usize,
     _stop: extern fn (*const SimpleNetworkProtocol) usize,
     _initialize: extern fn (*const SimpleNetworkProtocol, usize, usize) usize,
-    // TODO
+    _reset: extern fn (*const SimpleNetworkProtocol, bool) usize,
+    _shutdown: extern fn (*const SimpleNetworkProtocol) usize,
+    _receive_filters: usize, // TODO
+    _station_address: usize, // TODO
+    _statistics: usize, // TODO
+    _mcast_ip_to_mac: usize, // TODO
+    _nvdata: usize, // TODO
+    _get_status: usize, // TODO
+    _transmit: usize, // TODO
+    _receive: usize, // TODO
+    _wait_for_packet: usize, // TODO
+    mode: *SimpleNetworkMode,
 
     /// Changes the state of a network interface from "stopped" to "started".
     pub fn start(self: *const SimpleNetworkProtocol) usize {
@@ -38,6 +49,16 @@ pub const SimpleNetworkProtocol = extern struct {
         return self._initialize(self, extra_rx_buffer_size, extra_tx_buffer_size);
     }
 
+    /// Resets a network adapter and reinitializes it with the parameters that were provided in the previous call to initialize().
+    pub fn reset(self: *const SimpleNetworkProtocol, extended_verification: bool) usize {
+        return self._reset(self, extended_verification);
+    }
+
+    /// Resets a network adapter and leaves it in a state that is safe for another driver to initialize.
+    pub fn shutdown(self: *const SimpleNetworkProtocol) usize {
+        return self._shutdown(self);
+    }
+
     pub const guid align(8) = uefi.Guid{
         .time_low = 0xa19832b9,
         .time_mid = 0xac25,
@@ -48,6 +69,96 @@ pub const SimpleNetworkProtocol = extern struct {
     };
 };
 
+pub const SimpleNetworkMode = extern struct {
+    state: u32,
+    hw_address_size: u32,
+    media_header_size: u32,
+    max_packet_size: u32,
+    nvram_size: u32,
+    nvram_access_size: u32,
+    receive_filter_mask: u32,
+    receive_filter_setting: packed struct {
+        receive_unicast: bool,
+        receive_multicast: bool,
+        receive_broadcast: bool,
+        receive_promiscuous: bool,
+        receive_promiscuous_multicast: bool,
+        _pad: u27,
+    },
+    max_mcast_filter_count: u32,
+    mcast_filter_count: u32,
+    mcast_filter: [16]MacAddress,
+    current_address: MacAddress,
+    broadcast_address: MacAddress,
+    permanent_address: MacAddress,
+    if_type: u8,
+    mac_address_changeable: bool,
+    multiple_tx_supported: bool,
+    media_present_supported: bool,
+    media_present: bool,
+};
+
+pub const AdapterInformationProtocol = extern struct {
+    _get_information: extern fn (*const AdapterInformationProtocol, *align(8) const uefi.Guid, **c_void, *usize) usize,
+    _set_information: extern fn (*const AdapterInformationProtocol, *align(8) const uefi.Guid, *const c_void, usize) usize,
+    _get_supported_types: extern fn (*const AdapterInformationProtocol, *[*]align(8) uefi.Guid, *usize) usize,
+
+    pub fn getInformation(self: *const AdapterInformationProtocol, information_type: *align(8) const uefi.Guid, information_block: **c_void, information_block_size: *usize) usize {
+        return self._get_information(self, information_type, information_block, information_block_size);
+    }
+
+    pub fn setInformation(self: *const AdapterInformationProtocol, information_type: *align(8) const uefi.Guid, information_block: *c_void, information_block_size: usize) usize {
+        return self._set_information(self, information_type, information_block, information_block_size);
+    }
+
+    pub fn getSupportedTypes(self: *const AdapterInformationProtocol, info_types_buffer: *[*]align(8) uefi.Guid, info_types_buffer_count: *usize) usize {
+        return self._set_information(self, info_types_buffer, info_types_buffer_count);
+    }
+
+    pub const guid align(8) = uefi.Guid{
+        .time_low = 0xe5dd1403,
+        .time_mid = 0xd622,
+        .time_high_and_version = 0xc24e,
+        .clock_seq_high_and_reserved = 0x84,
+        .clock_seq_low = 0x88,
+        .node = [_]u8{ 0xc7, 0x1b, 0x17, 0xf5, 0xe8, 0x02 },
+    };
+};
+
+pub const AdapterInfoMediaState = extern struct {
+    media_state: usize,
+
+    pub const guid align(8) = uefi.Guid{
+        .time_low = 0xd7c74207,
+        .time_mid = 0xa831,
+        .time_high_and_version = 0x4a26,
+        .clock_seq_high_and_reserved = 0xb1,
+        .clock_seq_low = 0xf5,
+        .node = [_]u8{ 0xd1, 0x93, 0x06, 0x5c, 0xe8, 0xb6 },
+    };
+};
+
+pub const Udp6Protocol = extern struct {
+    _get_mode_data: usize, // TODO
+    _configure: usize, // TODO
+    _groups: usize, // TODO
+    _transmit: usize, // TODO
+    _receive: usize, // TODO
+    _cancel: usize, // TODO
+    _poll: usize, // TODO
+
+    pub const guid align(8) = uefi.Guid{
+        .time_low = 0x4f948815,
+        .time_mid = 0xb4b9,
+        .time_high_and_version = 0x43cb,
+        .clock_seq_high_and_reserved = 0x8a,
+        .clock_seq_low = 0x33,
+        .node = [_]u8{ 0x90, 0xe0, 0x60, 0xb3, 0x49, 0x55 },
+    };
+};
+
+const MacAddress = [32]u8;
+
 pub fn main() void {
     con_out = uefi.system_table.con_out.?;
     const boot_services = uefi.system_table.boot_services.?;
@@ -55,7 +166,7 @@ pub fn main() void {
     _ = con_out.reset(false);
 
     // We're going to use this buffer to format strings.
-    var buf: [100]u8 = undefined;
+    var buf: [1024]u8 = undefined;
 
     const mnp align(8) = uefi.Guid{
         .time_low = 0x7ab33a91,
@@ -78,14 +189,28 @@ pub fn main() void {
     i = 0;
     while (i < no_handles) : (i += 1) {
         printf(buf[0..], "handles[{}] = {}\r\n", i, handles[i]);
-        var proto: *SimpleNetworkProtocol align(8) = undefined;
+        var proto: *SimpleNetworkProtocol = undefined;
         const s = boot_services.handleProtocol(handles[i], &SimpleNetworkProtocol.guid, @ptrCast(*?*c_void, &proto));
-        printf(buf[0..], "handleProtocol returned {}\r\n", s);
         if (s == uefi.status.success) {
             printf(buf[0..], "revision = {x}\r\n", proto.revision);
             printf(buf[0..], "start() = {}\r\n", proto.start());
             printf(buf[0..], "initialize() = {}\r\n", proto.initialize(65536, 65536));
             printf(buf[0..], "stop() = {}\r\n", proto.stop());
+            printf(buf[0..], "mode = {}\r\n", proto.mode);
+            printf(buf[0..], "mode.current_address = {x}\r\n", proto.mode.current_address);
+            printf(buf[0..], "mode.broadcast_address = {x}\r\n", proto.mode.broadcast_address);
+            printf(buf[0..], "mode.permanent_address = {x}\r\n", proto.mode.permanent_address);
+
+            var adapter_info: *AdapterInformationProtocol = undefined;
+            const s2 = boot_services.handleProtocol(handles[i], &AdapterInformationProtocol.guid, @ptrCast(*?*c_void, &adapter_info));
+            if (s2 == uefi.status.success) {
+                var info_block: *c_void = undefined;
+                var info_block_size: usize = undefined;
+                printf(buf[0..], "getInformation = {}\r\n", adapter_info.getInformation(&AdapterInfoMediaState.guid, &info_block, &info_block_size));
+                printf(buf[0..], "{}\r\n", info_block_size);
+            } else {
+                printf(buf[0..], "handleProtocol() = {}\r\n", s2);
+            }
         }
         puts("\r\n");
     }
@@ -95,10 +220,11 @@ pub fn main() void {
     }
 
     puts("\r\n\r\n\r\n");
+    printf(buf[0..], "{}\r\n", uefi.status.unsupported);
     _ = boot_services.stall(2 * 1000 * 1000);
 
-    puts("locating handles for mnp...\r\n");
-    status = boot_services.locateHandleBuffer(uefi.tables.LocateSearchType.ByProtocol, &mnp, null, &no_handles, &handles);
+    puts("locating handles for udp6...\r\n");
+    status = boot_services.locateHandleBuffer(uefi.tables.LocateSearchType.ByProtocol, &Udp6Protocol.guid, null, &no_handles, &handles);
     printf(buf[0..], "locateHandleBuffer returned {}\r\n", status);
     printf(buf[0..], "no_handles = {}\r\n", no_handles);
     i = 0;
@@ -110,5 +236,5 @@ pub fn main() void {
         printf(buf[0..], "freePool returned {}\r\n", status);
     }
 
-    _ = boot_services.stall(10 * 1000 * 1000);
+    _ = boot_services.stall(100 * 1000 * 1000);
 }
