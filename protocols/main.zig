@@ -23,15 +23,15 @@ pub const SimpleNetworkProtocol = extern struct {
     _initialize: extern fn (*const SimpleNetworkProtocol, usize, usize) usize,
     _reset: extern fn (*const SimpleNetworkProtocol, bool) usize,
     _shutdown: extern fn (*const SimpleNetworkProtocol) usize,
-    _receive_filters: usize, // TODO
+    _receive_filters: extern fn (*const SimpleNetworkProtocol, u32, u32, bool, usize, ?[*]const MacAddress) usize,
     _station_address: usize, // TODO
     _statistics: usize, // TODO
     _mcast_ip_to_mac: usize, // TODO
     _nvdata: usize, // TODO
     _get_status: usize, // TODO
-    _transmit: usize, // TODO
-    _receive: usize, // TODO
-    _wait_for_packet: usize, // TODO
+    _transmit: extern fn (*const SimpleNetworkProtocol, usize, usize, [*]const u8, ?*const MacAddress, ?*const MacAddress, ?*const u16) usize,
+    _receive: extern fn (*const SimpleNetworkProtocol, ?*usize, *usize, [*]u8, ?*MacAddress, ?*MacAddress, ?*u16) usize,
+    wait_for_packet: uefi.Event,
     mode: *SimpleNetworkMode,
 
     /// Changes the state of a network interface from "stopped" to "started".
@@ -59,6 +59,21 @@ pub const SimpleNetworkProtocol = extern struct {
         return self._shutdown(self);
     }
 
+    /// Manages the multicast receive filters of a network interface.
+    pub fn receiveFilters(self: *const SimpleNetworkProtocol, enable: u32, disable: u32, reset_mcast_filter: bool, mcast_filter_cnt: usize, mcast_filter: ?[*]const MacAddress) usize {
+        return self._receive_filters(self, enable, disable, reset_mcast_filter, mcast_filter_cnt, mcast_filter);
+    }
+
+    /// Places a packet in the transmit queue of a network interface.
+    pub fn transmit(self: *const SimpleNetworkProtocol, header_size: usize, buffer_size: usize, buffer: [*]const u8, src_addr: ?*const MacAddress, dest_addr: ?*const MacAddress, protocol: ?*const u16) usize {
+        return self._transmit(self, header_size, buffer_size, buffer, src_addr, dest_addr, protocol);
+    }
+
+    /// Receives a packet from a network interface.
+    pub fn receive(self: *const SimpleNetworkProtocol, header_size: ?*usize, buffer_size: *usize, buffer: [*]u8, src_addr: ?*MacAddress, dest_addr: ?*MacAddress, protocol: ?*u16) usize {
+        return self._receive(self, header_size, buffer_size, buffer, src_addr, dest_addr, protocol);
+    }
+
     pub const guid align(8) = uefi.Guid{
         .time_low = 0xa19832b9,
         .time_mid = 0xac25,
@@ -70,7 +85,7 @@ pub const SimpleNetworkProtocol = extern struct {
 };
 
 pub const SimpleNetworkMode = extern struct {
-    state: u32,
+    state: SimpleNetworkState,
     hw_address_size: u32,
     media_header_size: u32,
     max_packet_size: u32,
@@ -96,6 +111,12 @@ pub const SimpleNetworkMode = extern struct {
     multiple_tx_supported: bool,
     media_present_supported: bool,
     media_present: bool,
+};
+
+pub const SimpleNetworkState = extern enum(u32) {
+    Stopped,
+    Started,
+    Initialized,
 };
 
 pub const AdapterInformationProtocol = extern struct {
@@ -163,7 +184,7 @@ pub fn main() void {
     con_out = uefi.system_table.con_out.?;
     const boot_services = uefi.system_table.boot_services.?;
 
-    _ = con_out.reset(false);
+    //_ = con_out.reset(false);
 
     // We're going to use this buffer to format strings.
     var buf: [1024]u8 = undefined;
@@ -193,13 +214,27 @@ pub fn main() void {
         const s = boot_services.handleProtocol(handles[i], &SimpleNetworkProtocol.guid, @ptrCast(*?*c_void, &proto));
         if (s == uefi.status.success) {
             printf(buf[0..], "revision = {x}\r\n", proto.revision);
+            printf(buf[0..], "mode.state = {x}\r\n", proto.mode.state);
             printf(buf[0..], "start() = {}\r\n", proto.start());
-            printf(buf[0..], "initialize() = {}\r\n", proto.initialize(65536, 65536));
             printf(buf[0..], "stop() = {}\r\n", proto.stop());
+            printf(buf[0..], "mode.state = {x}\r\n", proto.mode.state);
             printf(buf[0..], "mode = {}\r\n", proto.mode);
+            printf(buf[0..], "mode.state = {x}\r\n", proto.mode.state);
             printf(buf[0..], "mode.current_address = {x}\r\n", proto.mode.current_address);
             printf(buf[0..], "mode.broadcast_address = {x}\r\n", proto.mode.broadcast_address);
             printf(buf[0..], "mode.permanent_address = {x}\r\n", proto.mode.permanent_address);
+            printf(buf[0..], "setting receive filters = {}\r\n", proto.receiveFilters(0x2, 0, true, 0, null));
+            printf(buf[0..], "initialize() = {}\r\n", proto.initialize(0, 0));
+            printf(buf[0..], "setting receive filters = {}\r\n", proto.receiveFilters(0x1, 0, true, 0, null));
+            printf(buf[0..], "mode = {}\r\n", proto.mode);
+            var header_size: usize = 0;
+            var buffer_size: usize = 200;
+            var buffer = [_]u8{0} ** 200;
+            printf(buf[0..], "sending packet... {}\r\n", proto.transmit(header_size, buffer_size, &buffer, null, null, null));
+            var index: usize = undefined;
+            _ = boot_services.waitForEvent(1, @ptrCast([*]uefi.Event, &proto.wait_for_packet), &index);
+            printf(buf[0..], "receiving packet... {}\r\n", proto.receive(&header_size, &buffer_size, &buffer, null, null, null));
+            printf(buf[0..], "stop() = {}\r\n", proto.stop());
 
             var adapter_info: *AdapterInformationProtocol = undefined;
             const s2 = boot_services.handleProtocol(handles[i], &AdapterInformationProtocol.guid, @ptrCast(*?*c_void, &adapter_info));
@@ -213,6 +248,7 @@ pub fn main() void {
             }
         }
         puts("\r\n");
+        _ = boot_services.stall(3 * 1000 * 1000);
     }
     if (status == uefi.status.success) {
         status = boot_services.freePool(@ptrCast(*[*]u8, handles));
