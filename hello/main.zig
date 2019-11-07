@@ -7,11 +7,9 @@ const uefi = @import("std").os.uefi;
 //
 // main() can return void or usize.
 pub fn main() void {
-    // uefi.system_table.con_out is a handle for the active console output
-    // device. It is a pointer to a structure that implements
-    // uefi.protocols.SimpleTextOutputProtocol. You can think of
-    // EFI protocols as interfaces to access devices and certain parts of
-    // your computer's firmware.
+    // uefi.system_table.con_out is a pointer to a structure that implements
+    // uefi.protocols.SimpleTextOutputProtocol that is associated with the
+    // active console output device.
     const con_out = uefi.system_table.con_out.?;
 
     // Clear screen. reset() returns usize(0) on success, like most
