@@ -10,7 +10,8 @@ var con_out: *uefi.protocols.SimpleTextOutputProtocol = undefined;
 
 fn puts(msg: []const u8) void {
     for (msg) |c| {
-        _ = con_out.outputString(&[_:0]u16{ c, 0 });
+        const c_ = [2]u16{ c, 0 }; // work around https://github.com/ziglang/zig/issues/4372
+        _ = con_out.outputString(@ptrCast(*const [1:0]u16, &c_));
     }
 }
 
