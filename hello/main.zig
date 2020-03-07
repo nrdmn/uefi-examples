@@ -20,8 +20,8 @@ pub fn main() void {
     // EFI uses UCS-2 encoded null-terminated strings. UCS-2 encodes
     // code points in exactly 16 bit. Unlike UTF-16, it does not support all
     // Unicode code points.
-    _ = con_out.outputString(&[_]u16{ 'H', 'e', 'l', 'l', 'o', ',', ' ', 0 });
-    _ = con_out.outputString(&[_]u16{ 'w', 'o', 'r', 'l', 'd', '\r', '\n', 0 });
+    _ = con_out.outputString(&[_:0]u16{ 'H', 'e', 'l', 'l', 'o', ',', ' ' });
+    _ = con_out.outputString(&[_:0]u16{ 'w', 'o', 'r', 'l', 'd', '\r', '\n' });
     // EFI uses \r\n for line breaks (like Windows).
 
     // Boot services are EFI facilities that are only available during OS

@@ -5,11 +5,11 @@ var con_out: *uefi.protocols.SimpleTextOutputProtocol = undefined;
 
 fn puts(msg: []const u8) void {
     for (msg) |c| {
-        _ = con_out.outputString(&[_]u16{ c, 0 });
+        _ = con_out.outputString(&[_:0]u16{c});
     }
 }
 
-fn printf(buf: []u8, comptime format: []const u8, args: ...) void {
+fn printf(buf: []u8, comptime format: []const u8, args: var) void {
     puts(fmt.bufPrint(buf, format, args) catch unreachable);
 }
 
@@ -19,32 +19,38 @@ pub fn main() void {
     con_out = uefi.system_table.con_out.?;
     var buf: [40]u8 = undefined;
 
-    var name_size: usize = 2;
     var buffer_size: usize = 2;
-    var name: [*]u16 = &[_]u16{0};
+    var name: [*:0]align(8) u16 = undefined;
+    _ = boot_services.allocatePool(uefi.tables.MemoryType.BootServicesData, 2, @ptrCast(*[*]u8, &name));
+    name[0] = 0;
     var guid: uefi.Guid align(8) = undefined;
     while (true) {
+        var name_size = buffer_size;
         switch (runtime_services.getNextVariableName(&name_size, name, &guid)) {
             uefi.status.success => {
-                printf(buf[0..], "{x:0>8}-{x:0>4}-{x:0>4}-{x:0>2}{x:0>2}{x:0>12} ", guid.time_low, guid.time_mid, guid.time_high_and_version, guid.clock_seq_high_and_reserved, guid.clock_seq_low, guid.node);
+                printf(buf[0..], "{x:0>8}-{x:0>4}-{x:0>4}-{x:0>2}{x:0>2}{x:0>12} ", .{ guid.time_low, guid.time_mid, guid.time_high_and_version, guid.clock_seq_high_and_reserved, guid.clock_seq_low, guid.node });
                 _ = con_out.outputString(name);
                 puts("\r\n");
-                name_size = buffer_size;
             },
             uefi.status.buffer_too_small => {
-                var alloc: [*]u16 = undefined;
+                var alloc: [*:0]align(8) u16 = undefined;
                 _ = boot_services.allocatePool(uefi.tables.MemoryType.BootServicesData, name_size, @ptrCast(*[*]u8, &alloc));
                 for (name[0 .. buffer_size / 2]) |c, i| {
                     alloc[i] = c;
                 }
+                _ = boot_services.freePool(@ptrCast([*]u8, name));
                 name = alloc;
-                // TODO free old buffer
                 buffer_size = name_size;
             },
             uefi.status.not_found => break,
-            else => unreachable,
+            else => {
+                puts("???\r\n");
+                break;
+            },
         }
     }
+
+    _ = boot_services.freePool(@ptrCast([*]u8, name));
 
     // TODO read some variables
 

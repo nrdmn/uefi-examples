@@ -8,11 +8,11 @@ var con_out: *uefi.protocols.SimpleTextOutputProtocol = undefined;
 // encodes strings as UCS-2.
 fn puts(msg: []const u8) void {
     for (msg) |c| {
-        _ = con_out.outputString(&[_]u16{ c, 0 });
+        _ = con_out.outputString(&[_:0]u16{c});
     }
 }
 
-fn printf(buf: []u8, comptime format: []const u8, args: ...) void {
+fn printf(buf: []u8, comptime format: []const u8, args: var) void {
     puts(fmt.bufPrint(buf, format, args) catch unreachable);
 }
 
@@ -42,7 +42,7 @@ pub fn main() void {
             var y: usize = undefined;
             // queryMode can fail on device error or if we request an invalid mode.
             _ = simple_text_output_protocol.?.queryMode(i, &x, &y);
-            printf(buf[0..], "    mode {} = {}x{}\r\n", i, x, y);
+            printf(buf[0..], "    mode {} = {}x{}\r\n", .{ i, x, y });
         }
     } else {
         puts("*** simple text output protocol is NOT supported :(\r\n");
@@ -57,9 +57,9 @@ pub fn main() void {
         puts("*** simple pointer protocol is supported!\r\n");
 
         // Check the device's resolution:
-        printf(buf[0..], "    resolution x = {} per mm\r\n", simple_pointer_protocol.?.mode.resolution_x);
-        printf(buf[0..], "    resolution y = {} per mm\r\n", simple_pointer_protocol.?.mode.resolution_y);
-        printf(buf[0..], "    resolution z = {} per mm\r\n", simple_pointer_protocol.?.mode.resolution_z);
+        printf(buf[0..], "    resolution x = {} per mm\r\n", .{simple_pointer_protocol.?.mode.resolution_x});
+        printf(buf[0..], "    resolution y = {} per mm\r\n", .{simple_pointer_protocol.?.mode.resolution_y});
+        printf(buf[0..], "    resolution z = {} per mm\r\n", .{simple_pointer_protocol.?.mode.resolution_z});
 
         // Does it have buttons?
         if (simple_pointer_protocol.?.mode.left_button) {
@@ -84,12 +84,12 @@ pub fn main() void {
         puts("*** absolute pointer protocol is supported!\r\n");
 
         // Check the device's resolution:
-        printf(buf[0..], "    absolute min x = {}\r\n", absolute_pointer_protocol.?.mode.absolute_min_x);
-        printf(buf[0..], "    absolute min y = {}\r\n", absolute_pointer_protocol.?.mode.absolute_min_y);
-        printf(buf[0..], "    absolute min z = {}\r\n", absolute_pointer_protocol.?.mode.absolute_min_z);
-        printf(buf[0..], "    absolute max x = {}\r\n", absolute_pointer_protocol.?.mode.absolute_max_x);
-        printf(buf[0..], "    absolute max y = {}\r\n", absolute_pointer_protocol.?.mode.absolute_max_y);
-        printf(buf[0..], "    absolute max z = {}\r\n", absolute_pointer_protocol.?.mode.absolute_max_z);
+        printf(buf[0..], "    absolute min x = {}\r\n", .{absolute_pointer_protocol.?.mode.absolute_min_x});
+        printf(buf[0..], "    absolute min y = {}\r\n", .{absolute_pointer_protocol.?.mode.absolute_min_y});
+        printf(buf[0..], "    absolute min z = {}\r\n", .{absolute_pointer_protocol.?.mode.absolute_min_z});
+        printf(buf[0..], "    absolute max x = {}\r\n", .{absolute_pointer_protocol.?.mode.absolute_max_x});
+        printf(buf[0..], "    absolute max y = {}\r\n", .{absolute_pointer_protocol.?.mode.absolute_max_y});
+        printf(buf[0..], "    absolute max z = {}\r\n", .{absolute_pointer_protocol.?.mode.absolute_max_z});
 
         if (absolute_pointer_protocol.?.mode.attributes.supports_alt_active) {
             puts("    supports alt active\r\n");
@@ -117,10 +117,10 @@ pub fn main() void {
             var info: *uefi.protocols.GraphicsOutputModeInformation = undefined;
             var info_size: usize = undefined;
             _ = graphics_output_protocol.?.queryMode(i, &info_size, &info);
-            printf(buf[0..], "    mode {} = {}x{}\r\n", i, info.horizontal_resolution, info.vertical_resolution);
+            printf(buf[0..], "    mode {} = {}x{}\r\n", .{ i, info.horizontal_resolution, info.vertical_resolution });
         }
 
-        printf(buf[0..], "    current mode = {}\r\n", graphics_output_protocol.?.mode.mode);
+        printf(buf[0..], "    current mode = {}\r\n", .{graphics_output_protocol.?.mode.mode});
     } else {
         puts("*** graphics output protocol is NOT supported :(\r\n");
     }
@@ -135,16 +135,16 @@ pub fn main() void {
         var lucky_number: u8 = undefined;
         var status = rng_protocol.?.getRNG(null, 1, @ptrCast([*]u8, &lucky_number));
         if (status == uefi.status.success) {
-            printf(buf[0..], "    your lucky number = {}\r\n", lucky_number);
+            printf(buf[0..], "    your lucky number = {}\r\n", .{lucky_number});
         } else {
             // Generating random numbers can fail.
-            printf(buf[0..], "    no luck today, reason = {}\r\n", switch (status) {
-                uefi.status.unsupported => "unsupported",
-                uefi.status.device_error => "device error",
-                uefi.status.not_ready => "not ready",
-                uefi.status.invalid_parameter => "invalid parameter",
-                else => "(unknown)",
-            });
+            printf(buf[0..], "    no luck today, reason = {}\r\n", .{switch (status) {
+                uefi.status.unsupported => "unsupported"[0..],
+                uefi.status.device_error => "device error"[0..],
+                uefi.status.not_ready => "not ready"[0..],
+                uefi.status.invalid_parameter => "invalid parameter"[0..],
+                else => "(unknown)"[0..],
+            }});
         }
     } else {
         puts("*** rng protocol is NOT supported :(\r\n");

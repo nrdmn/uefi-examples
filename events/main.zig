@@ -10,19 +10,19 @@ var con_out: *uefi.protocols.SimpleTextOutputProtocol = undefined;
 
 fn puts(msg: []const u8) void {
     for (msg) |c| {
-        _ = con_out.outputString(&[_]u16{ c, 0 });
+        _ = con_out.outputString(&[_:0]u16{ c, 0 });
     }
 }
 
-fn printf(buf: []u8, comptime format: []const u8, args: ...) void {
+fn printf(buf: []u8, comptime format: []const u8, args: var) void {
     puts(fmt.bufPrint(buf, format, args) catch unreachable);
 }
 
-extern fn count(event: uefi.Event, context: ?*const c_void) void {
+fn count(event: uefi.Event, context: ?*const c_void) callconv(.C) void {
     counter += 1;
     _ = con_out.setCursorPosition(0, 1);
     var buf: [64]u8 = undefined;
-    printf(buf[0..], "count() has been called {} times.", counter);
+    printf(buf[0..], "count() has been called {} times.", .{counter});
 }
 
 pub fn main() void {
@@ -48,7 +48,7 @@ pub fn main() void {
 
     // Create an array of input events.
     const input_events = [_]uefi.Event{
-        uefi.system_table.con_in.?.wait_for_key_ex,
+        uefi.system_table.con_in.?.wait_for_key,
     };
     // TODO add more input events
 
@@ -59,9 +59,9 @@ pub fn main() void {
 
         // Key event
         if (index == 0) {
-            var key_data: uefi.protocols.KeyData = undefined;
-            if (uefi.system_table.con_in.?.readKeyStrokeEx(&key_data) == uefi.status.success) {
-                switch (key_data.key.scan_code) {
+            var input_key: uefi.protocols.InputKey = undefined;
+            if (uefi.system_table.con_in.?.readKeyStroke(&input_key) == uefi.status.success) {
+                switch (input_key.scan_code) {
                     1 => if (cursor_y > 0) {
                         _ = con_out.setCursorPosition(cursor_x, cursor_y);
                         puts(" ");
