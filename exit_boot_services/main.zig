@@ -6,7 +6,7 @@ pub fn main() void {
 
     // get graphics protocol
     var graphics: *uefi.protocols.GraphicsOutputProtocol = undefined;
-    if (uefi.status.success != boot_services.locateProtocol(&uefi.protocols.GraphicsOutputProtocol.guid, null, @ptrCast(*?*c_void, &graphics))) {
+    if (uefi.Status.Success != boot_services.locateProtocol(&uefi.protocols.GraphicsOutputProtocol.guid, null, @ptrCast(*?*c_void, &graphics))) {
         return;
     }
     var fb: [*]u8 = @intToPtr([*]u8, graphics.mode.frame_buffer_base);
@@ -17,8 +17,8 @@ pub fn main() void {
     var memory_map_key: usize = undefined;
     var descriptor_size: usize = undefined;
     var descriptor_version: u32 = undefined;
-    while (uefi.status.buffer_too_small == boot_services.getMemoryMap(&memory_map_size, memory_map, &memory_map_key, &descriptor_size, &descriptor_version)) {
-        if (uefi.status.success != boot_services.allocatePool(uefi.tables.MemoryType.BootServicesData, memory_map_size, @ptrCast(*[*]u8, &memory_map))) {
+    while (uefi.Status.BufferTooSmall == boot_services.getMemoryMap(&memory_map_size, memory_map, &memory_map_key, &descriptor_size, &descriptor_version)) {
+        if (uefi.Status.Success != boot_services.allocatePool(uefi.tables.MemoryType.BootServicesData, memory_map_size, @ptrCast(*[*]align(8) u8, &memory_map))) {
             return;
         }
     }
@@ -42,15 +42,15 @@ pub fn main() void {
     //
     // Runtime services may be used. However, some restrictions apply. See the
     // UEFI specification for more information.
-    if (uefi.status.success == boot_services.exitBootServices(uefi.handle, memory_map_key)) {
+    if (uefi.Status.Success == boot_services.exitBootServices(uefi.handle, memory_map_key)) {
         // We may still use the frame buffer!
 
         // draw some colors
         var i: u32 = 0;
-        while (i < 640*480*4) : (i += 4) {
+        while (i < 640 * 480 * 4) : (i += 4) {
             fb[i] = @truncate(u8, @divTrunc(i, 256));
-            fb[i+1] = @truncate(u8, @divTrunc(i, 1536));
-            fb[i+2] = @truncate(u8, @divTrunc(i, 2560));
+            fb[i + 1] = @truncate(u8, @divTrunc(i, 1536));
+            fb[i + 2] = @truncate(u8, @divTrunc(i, 2560));
         }
     }
 

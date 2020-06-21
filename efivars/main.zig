@@ -22,20 +22,20 @@ pub fn main() void {
 
     var buffer_size: usize = 2;
     var name: [*:0]align(8) u16 = undefined;
-    _ = boot_services.allocatePool(uefi.tables.MemoryType.BootServicesData, 2, @ptrCast(*[*]u8, &name));
+    _ = boot_services.allocatePool(uefi.tables.MemoryType.BootServicesData, 2, @ptrCast(*[*]align(8) u8, &name));
     name[0] = 0;
     var guid: uefi.Guid align(8) = undefined;
     while (true) {
         var name_size = buffer_size;
         switch (runtime_services.getNextVariableName(&name_size, name, &guid)) {
-            uefi.status.success => {
+            uefi.Status.Success => {
                 printf(buf[0..], "{x:0>8}-{x:0>4}-{x:0>4}-{x:0>2}{x:0>2}{x:0>12} ", .{ guid.time_low, guid.time_mid, guid.time_high_and_version, guid.clock_seq_high_and_reserved, guid.clock_seq_low, guid.node });
                 _ = con_out.outputString(name);
                 puts("\r\n");
             },
-            uefi.status.buffer_too_small => {
+            uefi.Status.BufferTooSmall => {
                 var alloc: [*:0]align(8) u16 = undefined;
-                _ = boot_services.allocatePool(uefi.tables.MemoryType.BootServicesData, name_size, @ptrCast(*[*]u8, &alloc));
+                _ = boot_services.allocatePool(uefi.tables.MemoryType.BootServicesData, name_size, @ptrCast(*[*]align(8) u8, &alloc));
                 for (name[0 .. buffer_size / 2]) |c, i| {
                     alloc[i] = c;
                 }
@@ -43,7 +43,7 @@ pub fn main() void {
                 name = alloc;
                 buffer_size = name_size;
             },
-            uefi.status.not_found => break,
+            uefi.Status.NotFound => break,
             else => {
                 puts("???\r\n");
                 break;

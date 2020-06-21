@@ -55,13 +55,13 @@ pub fn main() void {
 
     var index: usize = undefined;
     // Wait for input events.
-    while (boot_services.waitForEvent(input_events.len, &input_events, &index) == uefi.status.success) {
+    while (boot_services.waitForEvent(input_events.len, &input_events, &index) == uefi.Status.Success) {
         // index tells us which event has been signalled.
 
         // Key event
         if (index == 0) {
             var input_key: uefi.protocols.InputKey = undefined;
-            if (uefi.system_table.con_in.?.readKeyStroke(&input_key) == uefi.status.success) {
+            if (uefi.system_table.con_in.?.readKeyStroke(&input_key) == uefi.Status.Success) {
                 switch (input_key.scan_code) {
                     1 => if (cursor_y > 0) {
                         _ = con_out.setCursorPosition(cursor_x, cursor_y);

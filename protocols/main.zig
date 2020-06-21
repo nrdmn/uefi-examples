@@ -32,7 +32,7 @@ pub fn main() void {
     // let's find it using locateProtocol(). All protocols have a unique GUID by
     // which we can find them. locateProtocol() returns the first matching protocol.
     var simple_text_output_protocol: ?*uefi.protocols.SimpleTextOutputProtocol = undefined;
-    if (boot_services.locateProtocol(&uefi.protocols.SimpleTextOutputProtocol.guid, null, @ptrCast(*?*c_void, &simple_text_output_protocol)) == uefi.status.success) {
+    if (boot_services.locateProtocol(&uefi.protocols.SimpleTextOutputProtocol.guid, null, @ptrCast(*?*c_void, &simple_text_output_protocol)) == uefi.Status.Success) {
         puts("*** simple text output protocol is supported!\r\n");
 
         // simple_text_output_protocol is only null if no protocol has been found.
@@ -54,7 +54,7 @@ pub fn main() void {
     // NOTE: Many firmwares, including OVMF, locate a protocol here even if
     // they don't support mice or touchscreens.
     var simple_pointer_protocol: ?*uefi.protocols.SimplePointerProtocol = undefined;
-    if (boot_services.locateProtocol(&uefi.protocols.SimplePointerProtocol.guid, null, @ptrCast(*?*c_void, &simple_pointer_protocol)) == uefi.status.success) {
+    if (boot_services.locateProtocol(&uefi.protocols.SimplePointerProtocol.guid, null, @ptrCast(*?*c_void, &simple_pointer_protocol)) == uefi.Status.Success) {
         puts("*** simple pointer protocol is supported!\r\n");
 
         // Check the device's resolution:
@@ -81,7 +81,7 @@ pub fn main() void {
     // Do we have an absolute pointing device (touchscreen)?
     // NOTE: see note above.
     var absolute_pointer_protocol: ?*uefi.protocols.AbsolutePointerProtocol = undefined;
-    if (boot_services.locateProtocol(&uefi.protocols.AbsolutePointerProtocol.guid, null, @ptrCast(*?*c_void, &absolute_pointer_protocol)) == uefi.status.success) {
+    if (boot_services.locateProtocol(&uefi.protocols.AbsolutePointerProtocol.guid, null, @ptrCast(*?*c_void, &absolute_pointer_protocol)) == uefi.Status.Success) {
         puts("*** absolute pointer protocol is supported!\r\n");
 
         // Check the device's resolution:
@@ -109,7 +109,7 @@ pub fn main() void {
 
     // Graphics output?
     var graphics_output_protocol: ?*uefi.protocols.GraphicsOutputProtocol = undefined;
-    if (boot_services.locateProtocol(&uefi.protocols.GraphicsOutputProtocol.guid, null, @ptrCast(*?*c_void, &graphics_output_protocol)) == 0) {
+    if (boot_services.locateProtocol(&uefi.protocols.GraphicsOutputProtocol.guid, null, @ptrCast(*?*c_void, &graphics_output_protocol)) == uefi.Status.Success) {
         puts("*** graphics output protocol is supported!\r\n");
 
         // Check supported resolutions:
@@ -129,23 +129,23 @@ pub fn main() void {
 
     // What about a random number generator?
     var rng_protocol: ?*uefi.protocols.RNGProtocol = undefined;
-    if (boot_services.locateProtocol(&uefi.protocols.RNGProtocol.guid, null, @ptrCast(*?*c_void, &rng_protocol)) == uefi.status.success) {
+    if (boot_services.locateProtocol(&uefi.protocols.RNGProtocol.guid, null, @ptrCast(*?*c_void, &rng_protocol)) == uefi.Status.Success) {
         puts("*** rng protocol is supported!\r\n");
 
         // We can pick a rng, but we're going to use the default one.
         var lucky_number: u8 = undefined;
         var status = rng_protocol.?.getRNG(null, 1, @ptrCast([*]u8, &lucky_number));
-        if (status == uefi.status.success) {
+        if (status == uefi.Status.Success) {
             printf(buf[0..], "    your lucky number = {}\r\n", .{lucky_number});
         } else {
             // Generating random numbers can fail.
-            printf(buf[0..], "    no luck today, reason = {}\r\n", .{switch (status) {
-                uefi.status.unsupported => "unsupported"[0..],
-                uefi.status.device_error => "device error"[0..],
-                uefi.status.not_ready => "not ready"[0..],
-                uefi.status.invalid_parameter => "invalid parameter"[0..],
-                else => "(unknown)"[0..],
-            }});
+            printf(buf[0..], "    no luck today, reason = {}\r\n", .{@as([]const u8, switch (status) {
+                uefi.Status.Unsupported => "unsupported",
+                uefi.Status.DeviceError => "device error",
+                uefi.Status.NotReady => "not ready",
+                uefi.Status.InvalidParameter => "invalid parameter",
+                else => "(unknown)",
+            })});
         }
     } else {
         puts("*** rng protocol is NOT supported :(\r\n");
