@@ -9,11 +9,11 @@ var con_out: *uefi.protocols.SimpleTextOutputProtocol = undefined;
 fn puts(msg: []const u8) void {
     for (msg) |c| {
         const c_ = [2]u16{ c, 0 }; // work around https://github.com/ziglang/zig/issues/4372
-        _ = con_out.outputString(@ptrCast(*const [1:0]u16, &c_));
+        _ = con_out.outputString(@as(*const [1:0]u16, @ptrCast(&c_)));
     }
 }
 
-fn printf(buf: []u8, comptime format: []const u8, args: var) void {
+fn printf(buf: []u8, comptime format: []const u8, args: anytype) void {
     puts(fmt.bufPrint(buf, format, args) catch unreachable);
 }
 
@@ -32,7 +32,7 @@ pub fn main() void {
     // let's find it using locateProtocol(). All protocols have a unique GUID by
     // which we can find them. locateProtocol() returns the first matching protocol.
     var simple_text_output_protocol: ?*uefi.protocols.SimpleTextOutputProtocol = undefined;
-    if (boot_services.locateProtocol(&uefi.protocols.SimpleTextOutputProtocol.guid, null, @ptrCast(*?*c_void, &simple_text_output_protocol)) == uefi.Status.Success) {
+    if (boot_services.locateProtocol(&uefi.protocols.SimpleTextOutputProtocol.guid, null, @as(*?*anyopaque, @ptrCast(&simple_text_output_protocol))) == uefi.Status.Success) {
         puts("*** simple text output protocol is supported!\r\n");
 
         // simple_text_output_protocol is only null if no protocol has been found.
@@ -54,7 +54,7 @@ pub fn main() void {
     // NOTE: Many firmwares, including OVMF, locate a protocol here even if
     // they don't support mice or touchscreens.
     var simple_pointer_protocol: ?*uefi.protocols.SimplePointerProtocol = undefined;
-    if (boot_services.locateProtocol(&uefi.protocols.SimplePointerProtocol.guid, null, @ptrCast(*?*c_void, &simple_pointer_protocol)) == uefi.Status.Success) {
+    if (boot_services.locateProtocol(&uefi.protocols.SimplePointerProtocol.guid, null, @as(*?*anyopaque, @ptrCast(&simple_pointer_protocol))) == uefi.Status.Success) {
         puts("*** simple pointer protocol is supported!\r\n");
 
         // Check the device's resolution:
@@ -81,7 +81,7 @@ pub fn main() void {
     // Do we have an absolute pointing device (touchscreen)?
     // NOTE: see note above.
     var absolute_pointer_protocol: ?*uefi.protocols.AbsolutePointerProtocol = undefined;
-    if (boot_services.locateProtocol(&uefi.protocols.AbsolutePointerProtocol.guid, null, @ptrCast(*?*c_void, &absolute_pointer_protocol)) == uefi.Status.Success) {
+    if (boot_services.locateProtocol(&uefi.protocols.AbsolutePointerProtocol.guid, null, @as(*?*anyopaque, @ptrCast(&absolute_pointer_protocol))) == uefi.Status.Success) {
         puts("*** absolute pointer protocol is supported!\r\n");
 
         // Check the device's resolution:
@@ -109,7 +109,7 @@ pub fn main() void {
 
     // Graphics output?
     var graphics_output_protocol: ?*uefi.protocols.GraphicsOutputProtocol = undefined;
-    if (boot_services.locateProtocol(&uefi.protocols.GraphicsOutputProtocol.guid, null, @ptrCast(*?*c_void, &graphics_output_protocol)) == uefi.Status.Success) {
+    if (boot_services.locateProtocol(&uefi.protocols.GraphicsOutputProtocol.guid, null, @as(*?*anyopaque, @ptrCast(&graphics_output_protocol))) == uefi.Status.Success) {
         puts("*** graphics output protocol is supported!\r\n");
 
         // Check supported resolutions:
@@ -129,17 +129,17 @@ pub fn main() void {
 
     // What about a random number generator?
     var rng_protocol: ?*uefi.protocols.RNGProtocol = undefined;
-    if (boot_services.locateProtocol(&uefi.protocols.RNGProtocol.guid, null, @ptrCast(*?*c_void, &rng_protocol)) == uefi.Status.Success) {
+    if (boot_services.locateProtocol(&uefi.protocols.RNGProtocol.guid, null, @as(*?*anyopaque, @ptrCast(&rng_protocol))) == uefi.Status.Success) {
         puts("*** rng protocol is supported!\r\n");
 
         // We can pick a rng, but we're going to use the default one.
         var lucky_number: u8 = undefined;
-        var status = rng_protocol.?.getRNG(null, 1, @ptrCast([*]u8, &lucky_number));
+        var status = rng_protocol.?.getRNG(null, 1, @as([*]u8, @ptrCast(&lucky_number)));
         if (status == uefi.Status.Success) {
             printf(buf[0..], "    your lucky number = {}\r\n", .{lucky_number});
         } else {
             // Generating random numbers can fail.
-            printf(buf[0..], "    no luck today, reason = {}\r\n", .{@as([]const u8, switch (status) {
+            printf(buf[0..], "    no luck today, reason = {s}\r\n", .{@as([]const u8, switch (status) {
                 uefi.Status.Unsupported => "unsupported",
                 uefi.Status.DeviceError => "device error",
                 uefi.Status.NotReady => "not ready",

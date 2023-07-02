@@ -6,11 +6,11 @@ var con_out: *uefi.protocols.SimpleTextOutputProtocol = undefined;
 fn puts(msg: []const u8) void {
     for (msg) |c| {
         const c_ = [2]u16{ c, 0 }; // work around https://github.com/ziglang/zig/issues/4372
-        _ = con_out.outputString(@ptrCast(*const [1:0]u16, &c_));
+        _ = con_out.outputString(@as(*const [1:0]u16, @ptrCast(&c_)));
     }
 }
 
-fn printf(buf: []u8, comptime format: []const u8, args: var) void {
+fn printf(buf: []u8, comptime format: []const u8, args: anytype) void {
     puts(fmt.bufPrint(buf, format, args) catch unreachable);
 }
 
@@ -30,7 +30,7 @@ pub fn main() void {
         // allocatePool is the UEFI equivalent of malloc. allocatePool may
         // alter the size of the memory map, so we must check the return
         // value of getMemoryMap every time.
-        if (uefi.Status.Success != boot_services.allocatePool(uefi.tables.MemoryType.BootServicesData, memory_map_size, @ptrCast(*[*]align(8) u8, &memory_map))) {
+        if (uefi.Status.Success != boot_services.allocatePool(uefi.tables.MemoryType.BootServicesData, memory_map_size, @as(*[*]align(8) u8, @ptrCast(&memory_map)))) {
             return;
         }
     }
@@ -46,20 +46,20 @@ pub fn main() void {
             memory_map[i].physical_start,
             memory_map[i].virtual_start,
             memory_map[i].number_of_pages,
-            @boolToInt(memory_map[i].attribute.uc),
-            @boolToInt(memory_map[i].attribute.wc),
-            @boolToInt(memory_map[i].attribute.wt),
-            @boolToInt(memory_map[i].attribute.wb),
-            @boolToInt(memory_map[i].attribute.uce),
-            @boolToInt(memory_map[i].attribute.wp),
-            @boolToInt(memory_map[i].attribute.rp),
-            @boolToInt(memory_map[i].attribute.xp),
-            @boolToInt(memory_map[i].attribute.nv),
-            @boolToInt(memory_map[i].attribute.more_reliable),
-            @boolToInt(memory_map[i].attribute.ro),
-            @boolToInt(memory_map[i].attribute.sp),
-            @boolToInt(memory_map[i].attribute.cpu_crypto),
-            @boolToInt(memory_map[i].attribute.memory_runtime),
+            @intFromBool(memory_map[i].attribute.uc),
+            @intFromBool(memory_map[i].attribute.wc),
+            @intFromBool(memory_map[i].attribute.wt),
+            @intFromBool(memory_map[i].attribute.wb),
+            @intFromBool(memory_map[i].attribute.uce),
+            @intFromBool(memory_map[i].attribute.wp),
+            @intFromBool(memory_map[i].attribute.rp),
+            @intFromBool(memory_map[i].attribute.xp),
+            @intFromBool(memory_map[i].attribute.nv),
+            @intFromBool(memory_map[i].attribute.more_reliable),
+            @intFromBool(memory_map[i].attribute.ro),
+            @intFromBool(memory_map[i].attribute.sp),
+            @intFromBool(memory_map[i].attribute.cpu_crypto),
+            @intFromBool(memory_map[i].attribute.memory_runtime),
         });
     }
 

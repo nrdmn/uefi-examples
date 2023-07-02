@@ -11,15 +11,17 @@ var con_out: *uefi.protocols.SimpleTextOutputProtocol = undefined;
 fn puts(msg: []const u8) void {
     for (msg) |c| {
         const c_ = [2]u16{ c, 0 }; // work around https://github.com/ziglang/zig/issues/4372
-        _ = con_out.outputString(@ptrCast(*const [1:0]u16, &c_));
+        _ = con_out.outputString(@as(*const [1:0]u16, @ptrCast(&c_)));
     }
 }
 
-fn printf(buf: []u8, comptime format: []const u8, args: var) void {
+fn printf(buf: []u8, comptime format: []const u8, args: anytype) void {
     puts(fmt.bufPrint(buf, format, args) catch unreachable);
 }
 
-fn count(event: uefi.Event, context: ?*const c_void) callconv(.C) void {
+fn count(event: uefi.Event, context: ?*const anyopaque) callconv(.C) void {
+    _ = context;
+    _ = event;
     counter += 1;
     _ = con_out.setCursorPosition(0, 1);
     var buf: [64]u8 = undefined;
