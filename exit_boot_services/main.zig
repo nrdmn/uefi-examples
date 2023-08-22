@@ -6,10 +6,10 @@ pub fn main() void {
 
     // get graphics protocol
     var graphics: *uefi.protocols.GraphicsOutputProtocol = undefined;
-    if (uefi.Status.Success != boot_services.locateProtocol(&uefi.protocols.GraphicsOutputProtocol.guid, null, @ptrCast(*?*c_void, &graphics))) {
+    if (uefi.Status.Success != boot_services.locateProtocol(&uefi.protocols.GraphicsOutputProtocol.guid, null, @as(*?*anyopaque, @ptrCast(&graphics)))) {
         return;
     }
-    var fb: [*]u8 = @intToPtr([*]u8, graphics.mode.frame_buffer_base);
+    var fb: [*]u8 = @as([*]u8, @ptrFromInt(graphics.mode.frame_buffer_base));
 
     // get the current memory map
     var memory_map: [*]uefi.tables.MemoryDescriptor = undefined;
@@ -18,7 +18,7 @@ pub fn main() void {
     var descriptor_size: usize = undefined;
     var descriptor_version: u32 = undefined;
     while (uefi.Status.BufferTooSmall == boot_services.getMemoryMap(&memory_map_size, memory_map, &memory_map_key, &descriptor_size, &descriptor_version)) {
-        if (uefi.Status.Success != boot_services.allocatePool(uefi.tables.MemoryType.BootServicesData, memory_map_size, @ptrCast(*[*]align(8) u8, &memory_map))) {
+        if (uefi.Status.Success != boot_services.allocatePool(uefi.tables.MemoryType.BootServicesData, memory_map_size, @as(*[*]align(8) u8, @ptrCast(&memory_map)))) {
             return;
         }
     }
@@ -48,9 +48,9 @@ pub fn main() void {
         // draw some colors
         var i: u32 = 0;
         while (i < 640 * 480 * 4) : (i += 4) {
-            fb[i] = @truncate(u8, @divTrunc(i, 256));
-            fb[i + 1] = @truncate(u8, @divTrunc(i, 1536));
-            fb[i + 2] = @truncate(u8, @divTrunc(i, 2560));
+            fb[i] = @as(u8, @truncate(@divTrunc(i, 256)));
+            fb[i + 1] = @as(u8, @truncate(@divTrunc(i, 1536)));
+            fb[i + 2] = @as(u8, @truncate(@divTrunc(i, 2560)));
         }
     }
 
