@@ -19,7 +19,7 @@ fn printf(buf: []u8, comptime format: []const u8, args: anytype) void {
     puts(fmt.bufPrint(buf, format, args) catch unreachable);
 }
 
-fn count(event: uefi.Event, context: ?*const anyopaque) callconv(.C) void {
+fn count(event: uefi.Event, context: ?*const anyopaque) callconv(uefi.cc) void {
     _ = context;
     _ = event;
     counter += 1;
